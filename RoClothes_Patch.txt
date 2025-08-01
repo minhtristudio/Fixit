@@ -1,0 +1,263 @@
+	-- RoClothes Auto-Save Patch
+	-- Add this code near the end of the RoClothes function (before the final 'end')
+	
+	-- Auto-Save Configuration
+	local AutoSaveEnabled = true
+	local SaveFileName = "RoClothes_Settings.json"
+	local AutoSaveData = {
+		ClothesSettings = {},
+		ToggleStates = {},
+		InputValues = {},
+		LastSaved = os.time()
+	}
+	
+	-- Load existing settings
+	local function LoadSettings()
+		if readfile and isfile and isfile(SaveFileName) then
+			local success, data = pcall(function()
+				return game:GetService("HttpService"):JSONDecode(readfile(SaveFileName))
+			end)
+			if success and data then
+				AutoSaveData = data
+				print("RoClothes: Settings loaded successfully")
+				return true
+			end
+		end
+		print("RoClothes: No existing settings found, using defaults")
+		return false
+	end
+	
+	-- Save settings
+	local function SaveSettings()
+		if writefile and AutoSaveEnabled then
+			AutoSaveData.LastSaved = os.time()
+			local success = pcall(function()
+				writefile(SaveFileName, game:GetService("HttpService"):JSONEncode(AutoSaveData))
+			end)
+			if success then
+				print("RoClothes: Settings saved successfully")
+			else
+				warn("RoClothes: Failed to save settings")
+			end
+		end
+	end
+	
+	-- Auto-save toggle function
+	local function ToggleAutoSave()
+		AutoSaveEnabled = not AutoSaveEnabled
+		AutoSaveData.ToggleStates["AutoSaveEnabled"] = AutoSaveEnabled
+		
+		if AutoSaveEnabled then
+			print("RoClothes: Auto-save enabled")
+		else
+			print("RoClothes: Auto-save disabled")
+		end
+		
+		SaveSettings()
+		return AutoSaveEnabled
+	end
+	
+	-- Save current player data
+	local function SavePlayerData()
+		if PlayerData[SelectPlayer] then
+			AutoSaveData.ClothesSettings[SelectPlayer] = {
+				CurrentClothes = PlayerData[SelectPlayer].CurrentClothes,
+				ClothesRecolor = PlayerData[SelectPlayer].ClothesRecolor,
+				CurrentBundle = PlayerData[SelectPlayer].CurrentBundle,
+				Tone = PlayerData[SelectPlayer].Tone,
+				BreastsScale = PlayerData[SelectPlayer].BreastsScale,
+				ButtsScale = PlayerData[SelectPlayer].ButtsScale,
+				LegsScale = PlayerData[SelectPlayer].LegsScale,
+				BreastsType = PlayerData[SelectPlayer].BreastsType,
+				TorsoType = PlayerData[SelectPlayer].TorsoType,
+				ArmType = PlayerData[SelectPlayer].ArmType,
+				LegsType = PlayerData[SelectPlayer].LegsType,
+				SkinTone = PlayerData[SelectPlayer].SkinTone
+			}
+			SaveSettings()
+		end
+	end
+	
+	-- Load player data
+	local function LoadPlayerData()
+		if AutoSaveData.ClothesSettings[SelectPlayer] and PlayerData[SelectPlayer] then
+			local savedData = AutoSaveData.ClothesSettings[SelectPlayer]
+			
+			-- Restore settings
+			PlayerData[SelectPlayer].CurrentClothes = savedData.CurrentClothes or {}
+			PlayerData[SelectPlayer].ClothesRecolor = savedData.ClothesRecolor or {}
+			PlayerData[SelectPlayer].CurrentBundle = savedData.CurrentBundle or "nil"
+			PlayerData[SelectPlayer].Tone = savedData.Tone or "Dark"
+			PlayerData[SelectPlayer].BreastsScale = savedData.BreastsScale or 1
+			PlayerData[SelectPlayer].ButtsScale = savedData.ButtsScale or 0
+			PlayerData[SelectPlayer].LegsScale = savedData.LegsScale or 1
+			PlayerData[SelectPlayer].BreastsType = savedData.BreastsType or 1
+			PlayerData[SelectPlayer].TorsoType = savedData.TorsoType or 1
+			PlayerData[SelectPlayer].ArmType = savedData.ArmType or 1
+			PlayerData[SelectPlayer].LegsType = savedData.LegsType or 1
+			PlayerData[SelectPlayer].SkinTone = savedData.SkinTone
+			
+			print("RoClothes: Player data restored for " .. SelectPlayer)
+		end
+	end
+	
+	-- Bundle and clothes tab toggle
+	local function ToggleBundleClothesTab()
+		local currentState = AutoSaveData.ToggleStates["BundleClothesTab"] or "Clothes"
+		
+		if currentState == "Clothes" then
+			currentState = "Bundle"
+			-- Switch to bundle view
+			GUIObject.Clothes_3.Visible = false
+			GUIObject.Bundles.Visible = true
+			AutoSaveData.ToggleStates["BundleClothesTab"] = "Bundle"
+		else
+			currentState = "Clothes"
+			-- Switch to clothes view
+			GUIObject.Bundles.Visible = false
+			GUIObject.Clothes_3.Visible = true
+			AutoSaveData.ToggleStates["BundleClothesTab"] = "Clothes"
+		end
+		
+		print("RoClothes: Switched to " .. currentState .. " tab")
+		SaveSettings()
+		return currentState
+	end
+	
+	-- Number/Text input switcher
+	local function ToggleInputMode(inputName)
+		local currentMode = AutoSaveData.ToggleStates[inputName .. "_Mode"] or "Number"
+		
+		if currentMode == "Number" then
+			currentMode = "Text"
+			AutoSaveData.ToggleStates[inputName .. "_Mode"] = "Text"
+		else
+			currentMode = "Number"
+			AutoSaveData.ToggleStates[inputName .. "_Mode"] = "Number"
+		end
+		
+		print("RoClothes: " .. inputName .. " input mode switched to " .. currentMode)
+		SaveSettings()
+		return currentMode
+	end
+	
+	-- Create auto-save button
+	local AutoSaveButton = Instance.new("TextButton")
+	AutoSaveButton.Name = "AutoSaveButton"
+	AutoSaveButton.Size = UDim2.new(0, 100, 0, 30)
+	AutoSaveButton.Position = UDim2.new(0, 10, 1, -40)
+	AutoSaveButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	AutoSaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	AutoSaveButton.Text = AutoSaveEnabled and "Auto-Save: ON" or "Auto-Save: OFF"
+	AutoSaveButton.Font = Enum.Font.SourceSans
+	AutoSaveButton.TextSize = 12
+	AutoSaveButton.Parent = GUIObject.Menu
+	
+	-- Create toggle button for Bundle/Clothes
+	local TabToggleButton = Instance.new("TextButton")
+	TabToggleButton.Name = "TabToggleButton"
+	TabToggleButton.Size = UDim2.new(0, 120, 0, 30)
+	TabToggleButton.Position = UDim2.new(0, 120, 1, -40)
+	TabToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	TabToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TabToggleButton.Text = "Tab: " .. (AutoSaveData.ToggleStates["BundleClothesTab"] or "Clothes")
+	TabToggleButton.Font = Enum.Font.SourceSans
+	TabToggleButton.TextSize = 12
+	TabToggleButton.Parent = GUIObject.Menu
+	
+	-- Create input mode switcher
+	local InputModeButton = Instance.new("TextButton")
+	InputModeButton.Name = "InputModeButton"
+	InputModeButton.Size = UDim2.new(0, 100, 0, 30)
+	InputModeButton.Position = UDim2.new(0, 250, 1, -40)
+	InputModeButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+	InputModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	InputModeButton.Text = "Input: " .. (AutoSaveData.ToggleStates["General_Mode"] or "Number")
+	InputModeButton.Font = Enum.Font.SourceSans
+	InputModeButton.TextSize = 12
+	InputModeButton.Parent = GUIObject.Menu
+	
+	-- Button connections
+	AutoSaveButton.MouseButton1Click:Connect(function()
+		local state = ToggleAutoSave()
+		AutoSaveButton.Text = state and "Auto-Save: ON" or "Auto-Save: OFF"
+	end)
+	
+	TabToggleButton.MouseButton1Click:Connect(function()
+		local tab = ToggleBundleClothesTab()
+		TabToggleButton.Text = "Tab: " .. tab
+	end)
+	
+	InputModeButton.MouseButton1Click:Connect(function()
+		local mode = ToggleInputMode("General")
+		InputModeButton.Text = "Input: " .. mode
+	end)
+	
+	-- Auto-save when changes are made
+	local function SetupAutoSave()
+		-- Save on execute
+		if GUIObject.ExecuteButton then
+			GUIObject.ExecuteButton.MouseButton1Click:Connect(function()
+				if AutoSaveEnabled then
+					SavePlayerData()
+				end
+			end)
+		end
+		
+		-- Save on bundle changes
+		if GUIObject.BundlesButtonFrame then
+			for _, button in pairs(GUIObject.BundlesButtonFrame:GetChildren()) do
+				if button:IsA("TextButton") then
+					button.MouseButton1Click:Connect(function()
+						if AutoSaveEnabled then
+							wait(0.1) -- Small delay to ensure changes are applied
+							SavePlayerData()
+						end
+					end)
+				end
+			end
+		end
+		
+		-- Save on clothes changes
+		if GUIObject.ClothesButtonFrame then
+			for _, button in pairs(GUIObject.ClothesButtonFrame:GetChildren()) do
+				if button:IsA("TextButton") then
+					button.MouseButton1Click:Connect(function()
+						if AutoSaveEnabled then
+							wait(0.1) -- Small delay to ensure changes are applied
+							SavePlayerData()
+						end
+					end)
+				end
+			end
+		end
+	end
+	
+	-- Initialize auto-save system
+	spawn(function()
+		LoadSettings()
+		
+		-- Restore auto-save state
+		AutoSaveEnabled = AutoSaveData.ToggleStates["AutoSaveEnabled"] ~= false
+		
+		-- Wait for player data to be initialized
+		while not PlayerData[SelectPlayer] do
+			wait(0.1)
+		end
+		
+		-- Load saved player data
+		LoadPlayerData()
+		
+		-- Setup auto-save hooks
+		SetupAutoSave()
+		
+		-- Auto-save every 30 seconds if enabled
+		while true do
+			wait(30)
+			if AutoSaveEnabled then
+				SavePlayerData()
+			end
+		end
+	end)
+	
+	print("RoClothes Auto-Save Patch loaded successfully!")
